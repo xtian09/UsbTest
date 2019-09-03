@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.appcompat.widget.AppCompatButton xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/bt_compat"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-</androidx.appcompat.widget.AppCompatButton>
+    <TextView
+        android:id="@+id/bt_compat"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="@color/mapboxTealLight"
+        android:gravity="center" />
+
+</LinearLayout>

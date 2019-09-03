@@ -26,7 +26,7 @@
 //
 //        ArgBaseEventQueue(Looper looper, SystemSensorManager manager, int mode, String packageName) {
 //            if (packageName == null) packageName = "";
-//            argHandler = new Handler(mContext.getMainLooper());
+//            argHandler = new Handler(looper);
 //            mManager = manager;
 //        }
 //
@@ -120,9 +120,10 @@
 //        }
 //
 //        private int enableSensor(
-//                final Sensor sensor, final int rateUs, int maxBatchReportLatencyUs) {
+//                final Sensor sensor, int rateUs, int maxBatchReportLatencyUs) {
 //            if (argHandler == null) throw new NullPointerException();
 //            if (sensor == null) throw new NullPointerException();
+//            final long millisecondsRate = rateUs / 1000;
 //            switch (sensor.getType()) {
 //                case 1:
 //                    if (acceTask != null) {
@@ -132,10 +133,10 @@
 //                        @Override
 //                        public void run() {
 //                            dispatchSensorEvent(sensor.getHandle(), new float[]{0, 1, 2}, 0, System.currentTimeMillis());
-//                            argHandler.postDelayed(acceTask, rateUs);
+//                            argHandler.postDelayed(acceTask, millisecondsRate);
 //                        }
 //                    };
-//                    argHandler.postDelayed(acceTask, rateUs);
+//                    argHandler.postDelayed(acceTask, millisecondsRate);
 //                    return 0;
 //                case 2:
 //                    if (mangTask != null) {
@@ -145,10 +146,10 @@
 //                        @Override
 //                        public void run() {
 //                            dispatchSensorEvent(sensor.getHandle(), new float[]{0, 1, 2}, 0, System.currentTimeMillis());
-//                            argHandler.postDelayed(mangTask, rateUs);
+//                            argHandler.postDelayed(mangTask, millisecondsRate);
 //                        }
 //                    };
-//                    argHandler.postDelayed(mangTask, rateUs);
+//                    argHandler.postDelayed(mangTask, millisecondsRate);
 //                    return 0;
 //                case 4:
 //                    if (gyroTask != null) {
@@ -158,10 +159,10 @@
 //                        @Override
 //                        public void run() {
 //                            dispatchSensorEvent(sensor.getHandle(), new float[]{0, 1, 2}, 0, System.currentTimeMillis());
-//                            argHandler.postDelayed(gyroTask, rateUs);
+//                            argHandler.postDelayed(gyroTask, millisecondsRate);
 //                        }
 //                    };
-//                    argHandler.postDelayed(gyroTask, rateUs);
+//                    argHandler.postDelayed(gyroTask, millisecondsRate);
 //                    return 0;
 //            }
 //            return 1;
