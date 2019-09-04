@@ -1,4 +1,4 @@
-package com.example.usbtest;
+package com.example.usbtest.mcu.sensor;
 
 
 import java.util.ConcurrentModificationException;
@@ -6,7 +6,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class McuCache<K, V> {
+public class SensorCache<K, V> {
 
     private LinkedHashMap<K, V> gyroMap = null;
 
@@ -16,7 +16,7 @@ public class McuCache<K, V> {
 
     private int max;
 
-    public McuCache(final int max, boolean lru) {
+    public SensorCache(final int max, boolean lru) {
         this.max = max;
         gyroMap = new LinkedHashMap<K, V>(max, 0.75f, lru) {
             @Override
@@ -38,24 +38,11 @@ public class McuCache<K, V> {
         };
     }
 
-    public static final McuCache getMcuCache() {
+    public static final SensorCache getMcuCache() {
         return LazyHolder.INSTANCE;
     }
 
     public void put(int sensorType, K key, V value) {
-//        synchronized (this) {
-//            switch (sensorType) {
-//                case 1:
-//                    acceMap.put(key, value);
-//                    break;
-//                case 2:
-//                    mangMap.put(key, value);
-//                    break;
-//                case 4:
-//                    gyroMap.put(key, value);
-//                    break;
-//            }
-//        }
         switch (sensorType) {
             case 1:
                 synchronized (acceMap) {
@@ -84,30 +71,6 @@ public class McuCache<K, V> {
     }
 
     public <K, V> Map.Entry<K, V> getTail(int sensorType) throws ConcurrentModificationException {
-//        synchronized (this) {
-//            Map.Entry<K, V> tail = null;
-//            switch (sensorType) {
-//                case 1:
-//                    Iterator<Map.Entry<K, V>> iterator1 = ((LinkedHashMap<K, V>) acceMap).entrySet().iterator();
-//                    while (iterator1.hasNext()) {
-//                        tail = iterator1.next();
-//                    }
-//                    break;
-//                case 2:
-//                    Iterator<Map.Entry<K, V>> iterator2 = ((LinkedHashMap<K, V>) mangMap).entrySet().iterator();
-//                    while (iterator2.hasNext()) {
-//                        tail = iterator2.next();
-//                    }
-//                    break;
-//                case 4:
-//                    Iterator<Map.Entry<K, V>> iterator4 = ((LinkedHashMap<K, V>) gyroMap).entrySet().iterator();
-//                    while (iterator4.hasNext()) {
-//                        tail = iterator4.next();
-//                    }
-//                    break;
-//            }
-//            return tail;
-//        }
         switch (sensorType) {
             case 1:
                 synchronized (acceMap) {
@@ -142,6 +105,6 @@ public class McuCache<K, V> {
     }
 
     private static class LazyHolder {
-        private static final McuCache INSTANCE = new McuCache(5, false);
+        private static final SensorCache INSTANCE = new SensorCache(5, false);
     }
 }

@@ -1,12 +1,10 @@
-package com.example.usbtest.mcu;
-
-import com.example.usbtest.FileSpliter;
+package com.example.usbtest.mcu.file;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class McuCmd {
+public class FileCmd {
 
     //Within the range 0~MAX_APROM_SIZE, program APROM from address user specified
     public static final int CMD_UPDATE_APROM = 0x000000A0;
@@ -51,14 +49,6 @@ public class McuCmd {
 
     //Test whether or not the ISP is active
     public static final int CMD_CONNECT = 0x000000AE;
-
-    public static byte[] getSyncByte() {
-        return concatByte(IntToByte(McuCmd.CMD_SYNC_PACKNO), IntToByte(1), IntToByte(1));
-    }
-
-    public static byte[] getModeByte() {
-        return concatByte(IntToByte(McuCmd.CMD_GET_FLASHMODE), IntToByte(3));
-    }
 
     public static List<Integer> getReturnCode(byte[] data, int count) {
         List<Integer> result = new ArrayList<>();
@@ -107,33 +97,5 @@ public class McuCmd {
             offset += array.length;
         }
         return result;
-    }
-
-    public void cutFileTransfer(String filePath) {
-        FileSpliter fileSpliter = null;
-        try {
-            fileSpliter = new FileSpliter(filePath, 61);
-            Long mStartPos = 0L;
-            Long length = fileSpliter.getFileLength();
-            int mBufferSize = 64;
-            byte[] buffer = new byte[mBufferSize];
-            FileSpliter.Files files;
-            long nRead;
-            while (mStartPos < length) {
-                files = fileSpliter.getContent(mStartPos);
-                nRead = files.length;
-                buffer = files.bytes;
-                //in
-                //int retOut = argUsbDeviceConnection.bulkTransfer(argEpIn, buffer, 64, 100);
-                //out
-                mStartPos += nRead;
-            }
-        } catch (Exception e) {
-
-        } finally {
-            if (fileSpliter != null) {
-                fileSpliter.close();
-            }
-        }
     }
 }

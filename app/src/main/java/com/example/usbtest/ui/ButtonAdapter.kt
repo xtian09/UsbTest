@@ -1,7 +1,8 @@
-package com.example.usbtest
+package com.example.usbtest.ui
 
 import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.BaseViewHolder
+import com.example.usbtest.R
 
 class ButtonAdapter : BaseQuickAdapter<String, BaseViewHolder>(R.layout.item_btn) {
 

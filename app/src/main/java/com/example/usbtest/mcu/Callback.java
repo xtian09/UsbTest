@@ -1,10 +1,8 @@
 package com.example.usbtest.mcu;
 
-import java.io.IOException;
+public interface Callback {
 
-interface Callback {
+    void onFailure(String error);
 
-    void onFailure(byte[] request, IOException e);
-
-    void onResponse(byte[] request, byte[] response);
+    void onResponse(byte[] response);
 }

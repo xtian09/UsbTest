@@ -1,4 +1,4 @@
-package com.example.usbtest
+package com.example.usbtest.ui
 
 import android.app.Activity
 import android.widget.Toast

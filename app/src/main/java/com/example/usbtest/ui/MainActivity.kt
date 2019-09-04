@@ -1,4 +1,4 @@
-package com.example.usbtest
+package com.example.usbtest.ui
 
 import android.app.PendingIntent
 import android.content.*
@@ -9,12 +9,15 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.hardware.usb.*
 import android.os.Bundle
-import android.os.Handler
+import android.os.Environment
+import android.os.IBinder
 import android.os.Parcelable
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import com.example.usbtest.mcu.McuTransfer
+import com.example.usbtest.R
+import com.example.usbtest.mcu.file.FileTransfer
+import com.example.usbtest.mcu.sensor.SensorService
 import kotlinx.android.synthetic.main.activity_main.*
 
 
@@ -38,6 +41,7 @@ class MainActivity : AppCompatActivity() {
             "getBrightness",
             "mcuTransfer"
         )
+        private val path = "/Download/ARGlass_V20.00.08.bin"
     }
 
     private var mSensorManager: SensorManager? = null
@@ -46,9 +50,9 @@ class MainActivity : AppCompatActivity() {
     private var outEndPoint: UsbEndpoint? = null
     private var mUsbInterface: UsbInterface? = null
     private var mUsbDeviceConnection: UsbDeviceConnection? = null
-    private var mMcuThransfer: McuTransfer? = null
+    private var mFileThransfer: FileTransfer? = null
     private var btnAdapter: ButtonAdapter? = null
-    private var argService: ArgService? = null
+    private var argService: SensorService? = null
     private var mServiceConnection: ServiceConnection? = null
     private val usbStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -78,8 +82,6 @@ class MainActivity : AppCompatActivity() {
             count++
         }
     }
-    private var handler: Handler? = null
-    private var task: Runnable? = null
     private var count = 0
 
 
@@ -96,13 +98,6 @@ class MainActivity : AppCompatActivity() {
         mSensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         var sensor = mSensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
         //mSensorManager?.registerListener(sensorListener, sensor, SensorManager.SENSOR_DELAY_GAME)
-        handler = Handler()
-        task = Runnable {
-            Log.d("sensorTest", "count = $count")
-            count++
-            handler!!.postDelayed(task, 2)
-        }
-        //handler!!.postDelayed(task, 20)
     }
 
     override fun onRequestPermissionsResult(
@@ -153,13 +148,13 @@ class MainActivity : AppCompatActivity() {
                     0 -> initUsbInfo()
                     1 -> toast(argService?.argMcuVersion)
                     2 -> toast(argService?.argLtVersion)
-                    3 -> argService?.threeD = true
-                    4 -> toast("3D mode = " + argService?.threeD)
+                    3 -> argService?.set3DMode(true)
+                    4 -> toast("3D mode = " + argService?.get3DMode())
                     5 -> argService?.calibration = intArrayOf(1, 2, 3, 4)
                     6 -> toast("calibration = " + argService?.calibration)
                     7 -> argService?.brightness = 4
                     8 -> toast("brightness = " + argService?.brightness)
-                    9 -> mMcuThransfer?.start()
+                    9 -> mFileThransfer?.start()
                     else -> toast("unknown!")
                 }
             }
@@ -202,24 +197,24 @@ class MainActivity : AppCompatActivity() {
                         rv_usb.adapter = usbAdapter
                         usbAdapter.setNewData(arrayList)
 
-//                        mServiceConnection = object : ServiceConnection {
-//                            override fun onServiceConnected(
-//                                componentName: ComponentName,
-//                                iBinder: IBinder
-//                            ) {
-//                                argService = (iBinder as ArgService.ArgBinder).service
-//                            }
-//
-//                            override fun onServiceDisconnected(componentName: ComponentName) {
-//                                argService = null
-//                            }
-//                        }
-//                        bindService(
-//                            Intent(this, ArgService::class.java), mServiceConnection!!,
-//                            Context.BIND_AUTO_CREATE
-//                        )
+                        mServiceConnection = object : ServiceConnection {
+                            override fun onServiceConnected(
+                                componentName: ComponentName,
+                                iBinder: IBinder
+                            ) {
+                                argService = (iBinder as SensorService.ArgBinder).service
+                            }
+
+                            override fun onServiceDisconnected(componentName: ComponentName) {
+                                argService = null
+                            }
+                        }
+                        bindService(
+                            Intent(this, SensorService::class.java), mServiceConnection!!,
+                            Context.BIND_AUTO_CREATE
+                        )
                         btnAdapter?.addData(otherBtnList)
-                        initMcuT()
+                        //initMcuT()
                     } else {
                         it.requestPermission(
                             usbDevice,
@@ -233,45 +228,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun initMcuT() {
         if (mUsbDeviceConnection!!.claimInterface(mUsbInterface, true)) {
-            mMcuThransfer = McuTransfer(mUsbDeviceConnection, inEndPoint, outEndPoint)
+
+            var file = Environment.getExternalStoragePublicDirectory(path)
+            if (file.exists()) {
+                mFileThransfer = FileTransfer(
+                    mUsbDeviceConnection,
+                    inEndPoint,
+                    outEndPoint
+                )
+            }
+
         } else {
             mUsbDeviceConnection!!.close()
         }
     }
-
-//    private fun getMode() {
-//        if (mUsbDeviceConnection!!.claimInterface(mUsbInterface, true)) {
-//            val `in` = McuCmd.getModeByte()
-//            val retIn = mUsbDeviceConnection!!.bulkTransfer(outEndPoint, `in`, `in`.size, 100)
-//            if (retIn!! >= 0) {
-//                val out = ByteArray(64)
-//                val retOut = mUsbDeviceConnection!!.bulkTransfer(inEndPoint, out, 64, 100)
-//                Log.d("mcuTest", "in info = $retIn , out info =$retOut")
-//                var list = McuCmd.getReturnCode(out, 4)
-//                for (i in list) {
-//                    Log.d("mcuTest", "return code =$i")
-//                }
-//            }
-//        } else {
-//            mUsbDeviceConnection!!.close()
-//        }
-//    }
-//
-//    private fun getSYNC() {
-//        if (mUsbDeviceConnection!!.claimInterface(mUsbInterface, true)) {
-//            val `in` = McuCmd.getSyncByte()
-//            val retIn = mUsbDeviceConnection!!.bulkTransfer(outEndPoint, `in`, `in`.size, 100)
-//            if (retIn!! >= 0) {
-//                val out = ByteArray(64)
-//                val retOut = mUsbDeviceConnection!!.bulkTransfer(inEndPoint, out, 64, 100)
-//                Log.d("mcuTest", "in info = $retIn , out info =$retOut")
-//                var list = McuCmd.getReturnCode(out, 4)
-//                for (i in list) {
-//                    Log.d("mcuTest", "return code =$i")
-//                }
-//            }
-//        } else {
-//            mUsbDeviceConnection!!.close()
-//        }
-//    }
 }
