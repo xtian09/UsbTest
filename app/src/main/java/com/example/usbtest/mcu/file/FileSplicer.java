@@ -1,17 +1,18 @@
 package com.example.usbtest.mcu.file;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 
-public class FileSplicer {
+class FileSplicer {
 
     private RandomAccessFile mRandomAF;
 
-    public FileSplicer(String fileName) throws IOException {
+    FileSplicer(String fileName) throws FileNotFoundException {
         mRandomAF = new RandomAccessFile(fileName, "r");
     }
 
-    public synchronized byte[] getData(long start, int length) {
+    synchronized byte[] getData(long start, int length) {
         byte[] data = new byte[length];
         try {
             mRandomAF.seek(start);
@@ -22,7 +23,7 @@ public class FileSplicer {
         return data;
     }
 
-    public void close() {
+    void close() {
         if (mRandomAF != null) {
             try {
                 mRandomAF.close();
@@ -34,7 +35,7 @@ public class FileSplicer {
         }
     }
 
-    public int getFileLength() {
+    int getFileLength() {
         int length = 0;
         try {
             length = (int) mRandomAF.length();

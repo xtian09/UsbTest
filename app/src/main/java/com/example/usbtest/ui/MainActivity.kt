@@ -39,9 +39,10 @@ class MainActivity : AppCompatActivity() {
             "getCalibration",
             "setBrightness",
             "getBrightness",
-            "mcuTransfer"
+            "mcuTransfer",
+            "restartSensor"
         )
-        private val path = "/Download/ARGlass_V20.00.08.bin"
+        private const val path = "/Download/ARGlass_V20.00.08.bin"
     }
 
     private var mSensorManager: SensorManager? = null
@@ -50,7 +51,7 @@ class MainActivity : AppCompatActivity() {
     private var outEndPoint: UsbEndpoint? = null
     private var mUsbInterface: UsbInterface? = null
     private var mUsbDeviceConnection: UsbDeviceConnection? = null
-    private var mFileThransfer: FileTransfer? = null
+    private var mFileTransfer: FileTransfer? = null
     private var btnAdapter: ButtonAdapter? = null
     private var argService: SensorService? = null
     private var mServiceConnection: ServiceConnection? = null
@@ -62,12 +63,11 @@ class MainActivity : AppCompatActivity() {
                 toast("$deviceName is Attached")
             } else if ("android.hardware.usb.action.USB_DEVICE_DETACHED" == intent.action) {
                 toast("$deviceName is Detached")
-                argService?.let {
-                    unbindService(mServiceConnection)
-                }
                 mServiceConnection?.let {
                     unbindService(it)
+                    argService = null
                 }
+                mFileTransfer?.dispose()
                 btnAdapter?.setNewData(defaultBtnList)
             }
         }
@@ -96,8 +96,8 @@ class MainActivity : AppCompatActivity() {
             initBtn()
         }
         mSensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        var sensor = mSensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
-        //mSensorManager?.registerListener(sensorListener, sensor, SensorManager.SENSOR_DELAY_GAME)
+        val sensor = mSensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
+        mSensorManager?.registerListener(sensorListener, sensor, SensorManager.SENSOR_DELAY_GAME)
     }
 
     override fun onRequestPermissionsResult(
@@ -154,7 +154,8 @@ class MainActivity : AppCompatActivity() {
                     6 -> toast("calibration = " + argService?.calibration)
                     7 -> argService?.brightness = 4
                     8 -> toast("brightness = " + argService?.brightness)
-                    9 -> mFileThransfer?.start()
+                    9 -> fileTransfer()
+                    10 -> argService?.startSensor()
                     else -> toast("unknown!")
                 }
             }
@@ -214,7 +215,6 @@ class MainActivity : AppCompatActivity() {
                             Context.BIND_AUTO_CREATE
                         )
                         btnAdapter?.addData(otherBtnList)
-                        //initMcuT()
                     } else {
                         it.requestPermission(
                             usbDevice,
@@ -226,20 +226,17 @@ class MainActivity : AppCompatActivity() {
         } ?: toast("手机不支持OTG")
     }
 
-    private fun initMcuT() {
-        if (mUsbDeviceConnection!!.claimInterface(mUsbInterface, true)) {
-
-            var file = Environment.getExternalStoragePublicDirectory(path)
-            if (file.exists()) {
-                mFileThransfer = FileTransfer(
-                    mUsbDeviceConnection,
-                    inEndPoint,
-                    outEndPoint
-                )
-            }
-
-        } else {
-            mUsbDeviceConnection!!.close()
+    private fun fileTransfer() {
+        argService?.changeRom()
+        val file = Environment.getExternalStoragePublicDirectory(path)
+        if (file.exists()) {
+            mFileTransfer = FileTransfer(
+                mUsbManager,
+                file.toString()
+            )
+            Runnable {
+                mFileTransfer!!.start()
+            }.run()
         }
     }
 }

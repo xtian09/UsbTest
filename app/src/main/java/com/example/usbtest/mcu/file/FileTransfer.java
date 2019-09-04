@@ -1,15 +1,21 @@
 package com.example.usbtest.mcu.file;
 
+import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
+import android.hardware.usb.UsbInterface;
+import android.hardware.usb.UsbManager;
 import android.util.Log;
 
 import com.example.usbtest.mcu.Callback;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import static com.example.usbtest.mcu.file.FileCmd.CMD_GET_FLASHMODE;
+import static com.example.usbtest.mcu.file.FileCmd.CMD_RUN_APROM;
 import static com.example.usbtest.mcu.file.FileCmd.CMD_SYNC_PACKNO;
 import static com.example.usbtest.mcu.file.FileCmd.CMD_UPDATE_APROM;
 import static com.example.usbtest.mcu.file.FileCmd.IntToByte;
@@ -22,31 +28,77 @@ public class FileTransfer {
     private UsbEndpoint mEpIn;
     private UsbEndpoint mEpOut;
     private UsbDeviceConnection mUsbDeviceConnection;
-    private int timeOut = 100;
+    private static final int timeOut = 100;
+    private UsbManager mUsbManager;
     private FileSplicer mFileSplicer;
 
-    public FileTransfer(UsbDeviceConnection mUsbDeviceConnection, UsbEndpoint mEpIn, UsbEndpoint mEpOut) {
-        this.mUsbDeviceConnection = mUsbDeviceConnection;
-        this.mEpIn = mEpIn;
-        this.mEpOut = mEpOut;
+    public FileTransfer(UsbManager mUsbManager, String path) throws FileNotFoundException {
+        this.mUsbManager = mUsbManager;
+        this.mFileSplicer = new FileSplicer(path);
     }
 
     public void start() {
+        if (mUsbManager == null) {
+            Log.d(TAG, "OTG disable !!");
+        } else {
+            HashMap<String, UsbDevice> deviceList = mUsbManager.getDeviceList();
+            if (deviceList == null || deviceList.isEmpty()) {
+                Log.d(TAG, "usb deviceList doesn't exist !!");
+            } else {
+                for (UsbDevice usbDevice : deviceList.values()) {
+                    Log.d(TAG, "usb device vendorId = " + usbDevice.getVendorId() + " , ProductId = " + usbDevice.getProductId());
+                    if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 20512) {
+                        Log.d(TAG, "argDevice attached !!");
+                        mUsbDeviceConnection = mUsbManager.openDevice(usbDevice);
+                        if (mUsbDeviceConnection != null) {
+                            UsbInterface inf = usbDevice.getInterface(0);
+                            if (mUsbDeviceConnection.claimInterface(inf, true)) {
+                                if (inf.getEndpointCount() < 2) {
+                                    Log.d(TAG, "argDevice endPoint count error !!");
+                                    return;
+                                }
+                                mEpIn = inf.getEndpoint(0);
+                                mEpOut = inf.getEndpoint(1);
+                                preStage();
+                            } else {
+                                mUsbDeviceConnection.close();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void dispose() {
+        this.mUsbManager = null;
+        this.mUsbDeviceConnection = null;
+        this.mEpIn = null;
+        this.mEpOut = null;
+        if (this.mFileSplicer != null) {
+            this.mFileSplicer.close();
+            this.mFileSplicer = null;
+        }
+    }
+
+    private void preStage() {
         List<McuStage> stageList = new ArrayList<>();
-        stageList.add(new SyncStage());
         stageList.add(new ModeStage());
-        stageList.addAll(getFileSlice());
         RealStage realStage = new RealStage(stageList, 0, 0);
         realStage.deliver(0);
     }
 
-    public void dispose() {
-        this.mUsbDeviceConnection = null;
-        this.mEpIn = null;
-        this.mEpOut = null;
+    private void startStage() {
+        List<McuStage> stageList = new ArrayList<>();
+        stageList.add(new SyncStage());
+        stageList.add(new ModeStage());
+        stageList.addAll(getFileSlice());
+        stageList.add(new RunApStage());
+        RealStage realStage = new RealStage(stageList, 0, 0);
+        realStage.deliver(0);
     }
 
-    public List<McuStage> getFileSlice() {
+    private List<McuStage> getFileSlice() {
         ArrayList<McuStage> fileList = new ArrayList<>();
         int length = mFileSplicer.getFileLength();
         int startPos = 0;
@@ -106,7 +158,7 @@ public class FileTransfer {
         private int mIndex;
         private int mPkgNum;
 
-        public RealStage(List<McuStage> mStages, int mIndex, int mPkgNum) {
+        RealStage(List<McuStage> mStages, int mIndex, int mPkgNum) {
             this.mStages = mStages;
             this.mIndex = mIndex;
             this.mPkgNum = mPkgNum;
@@ -193,6 +245,24 @@ public class FileTransfer {
         }
     }
 
+    private class RunApStage extends BaseStage {
+
+        @Override
+        int cmd() {
+            return CMD_RUN_APROM;
+        }
+
+        @Override
+        byte[] data() {
+            return new byte[0];
+        }
+
+        @Override
+        void handleResponse(List<Integer> response) {
+            dispose();
+        }
+    }
+
     private class SyncStage extends BaseStage {
 
         @Override
@@ -226,6 +296,10 @@ public class FileTransfer {
         @Override
         void handleResponse(List<Integer> response) {
             Log.d(TAG, "mode = " + response.get(2));
+            if (response.get(2) == 2) {
+                Log.d(TAG, "start transfer !!");
+                startStage();
+            }
         }
     }
 

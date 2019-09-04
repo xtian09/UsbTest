@@ -48,37 +48,70 @@ public class SensorService extends Service {
     public void onCreate() {
         super.onCreate();
         mHandler = new Handler();
-        UsbManager mUsbManager = (UsbManager) getApplicationContext().getSystemService(Context.USB_SERVICE);
-        if (mUsbManager == null) {
-            Log.d(TAG, "OTG disable !!");
-        } else {
-            HashMap<String, UsbDevice> deviceList = mUsbManager.getDeviceList();
-            if (deviceList == null || deviceList.isEmpty()) {
-                Log.d(TAG, "usb deviceList doesn't exist !!");
+    }
+
+    public void startSensor() {
+        if (mHandler != null) {
+            UsbManager mUsbManager = (UsbManager) getApplicationContext().getSystemService(Context.USB_SERVICE);
+            if (mUsbManager == null) {
+                Log.d(TAG, "OTG disable !!");
             } else {
-                for (UsbDevice usbDevice : deviceList.values()) {
-                    Log.d(TAG, "usb device vendorId = " + usbDevice.getVendorId() + " , ProductId = " + usbDevice.getProductId());
-                    if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 20512) {
-                        Log.d(TAG, "argDevice attached !!");
-                        mUsbDeviceConnection = mUsbManager.openDevice(usbDevice);
-                        if (mUsbDeviceConnection != null) {
-                            UsbInterface inf = usbDevice.getInterface(0);
-                            if (mUsbDeviceConnection.claimInterface(inf, true)) {
-                                if (inf.getEndpointCount() < 2) {
-                                    Log.d(TAG, "argDevice endPoint count error !!");
-                                    return;
+                HashMap<String, UsbDevice> deviceList = mUsbManager.getDeviceList();
+                if (deviceList == null || deviceList.isEmpty()) {
+                    Log.d(TAG, "usb deviceList doesn't exist !!");
+                } else {
+                    for (UsbDevice usbDevice : deviceList.values()) {
+                        Log.d(TAG, "usb device vendorId = " + usbDevice.getVendorId() + " , ProductId = " + usbDevice.getProductId());
+                        if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 20512) {
+                            Log.d(TAG, "argDevice attached !!");
+                            mUsbDeviceConnection = mUsbManager.openDevice(usbDevice);
+                            if (mUsbDeviceConnection != null) {
+                                UsbInterface inf = usbDevice.getInterface(0);
+                                if (mUsbDeviceConnection.claimInterface(inf, true)) {
+                                    if (inf.getEndpointCount() < 2) {
+                                        Log.d(TAG, "argDevice endPoint count error !!");
+                                        return;
+                                    }
+                                    mEpIn = inf.getEndpoint(0);
+                                    mEpOut = inf.getEndpoint(1);
+                                    startSensor();
+                                } else {
+                                    mUsbDeviceConnection.close();
                                 }
-                                mEpIn = inf.getEndpoint(0);
-                                mEpOut = inf.getEndpoint(1);
-                                mVersionTask = new VersionTask();
-                                mHandler.post(mVersionTask);
-                            } else {
-                                mUsbDeviceConnection.close();
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    public void changeRom() {
+        if (mHandler != null) {
+            if (mVersionTask != null) {
+                mHandler.removeCallbacks(mVersionTask);
+                mVersionTask = null;
+            }
+            if (mSensorTask != null) {
+                mHandler.removeCallbacks(mSensorTask);
+                mSensorTask = null;
+            }
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    request(Cmd.lpromCmd, new Callback() {
+                        @Override
+                        public void onFailure(String error) {
+                            Log.d(TAG, "lpromCmd error = " + error);
+                        }
+
+                        @Override
+                        public void onResponse(byte[] response) {
+
+                        }
+                    });
+                }
+            });
         }
     }
 
@@ -159,80 +192,11 @@ public class SensorService extends Service {
         return ArgLtVersion;
     }
 
-    private void request(byte[] request, Callback mCallback) {
-        if (mUsbDeviceConnection == null || mEpIn == null || mEpOut == null) {
-            mCallback.onFailure("device detached !!");
-            return;
-        }
-        int requestCode = mUsbDeviceConnection.bulkTransfer(mEpOut, request, request.length, timeOut);
-        if (requestCode >= 0) {
-            byte[] response = new byte[64];
-            int responseCode = mUsbDeviceConnection.bulkTransfer(mEpIn, response, response.length, timeOut);
-            if (responseCode >= 0) {
-                mCallback.onResponse(response);
-            } else {
-                mCallback.onFailure("response fail !!");
-            }
-        } else {
-            mCallback.onFailure("request fail !!");
-        }
-    }
-
-    private void parseVersion(byte[] data) {
-        try {
-            if (data == null || data.length < 1)
-                throw new IllegalArgumentException("this data must not be null or empty");
-            char[] chars = new char[63];
-            for (int i = 1; i < data.length; i++) {
-                if (data[i] == 0) {
-                    chars = Arrays.copyOf(chars, i - 1);
-                    break;
-                }
-                chars[i - 1] = (char) data[i];
-                //Log.d(TAG, "chars[" + (i - 1) + "]=" + chars[i - 1]);
-            }
-            String rowData = String.valueOf(chars);
-            if (!TextUtils.isEmpty(rowData)) {
-                String[] versions = rowData.split("V");
-                if (versions.length > 1) {
-                    ArgMcuVersion = "V" + versions[0];
-                    ArgLtVersion = "V" + versions[1];
-                    Log.d(TAG, "ArgMcuVersion = " + ArgMcuVersion + " , ArgLtVersion = " + ArgLtVersion);
-                }
-            }
-        } catch (Exception e) {
-            Log.d(TAG, "argVersion Exception : " + e.toString());
-        }
-    }
-
-    private void parseSensor(byte[] data) {
-        if (1 == data[0]) {
-            if (data[1] != 0) {
-                Log.d(TAG, "cmd value=" + data[1] + "  ,3d value=" + data[26] + "  ,light=" + data[27] + "   ,lh=" + data[28] + "   ,lv=" + data[29] + "   ,rh=" + data[30] + "   ,rv=" + data[31]);
-            }
-            ArgBN = data[27];
-            ArgCalibration[0] = data[28];
-            ArgCalibration[1] = data[29];
-            ArgCalibration[2] = data[30];
-            ArgCalibration[3] = data[31];
-            if (Arg23D != data[26]) {
-                Arg23D = data[26];
-                Log.d(TAG, "usb mode has change to " + (0 == Arg23D));
-//                Intent intent = new Intent();
-//                intent.setAction("android.intent.action.3D_MODE_CHANGED");
-//                intent.putExtra("3D_MODE", 0 == Arg23D);
-//                mContext.sendBroadcast(intent);
-            }
-//                            saveGyroStr(out);
-//                            saveAcceStr(out);
-//                            saveMangStr(out);
-        }
-    }
-
     private final static class Cmd {
 
         private static final byte[] versionCmd = {2};
         private static final byte[] normalCmd = {1, 0};
+        private static final byte[] lpromCmd = {4, 1};
         private static LinkedBlockingQueue<byte[]> argCmdQueue = new LinkedBlockingQueue<>();
 
         private static void set3DMode(boolean b3D) {
@@ -315,6 +279,76 @@ public class SensorService extends Service {
                     mHandler.post(mSensorTask);
                 }
             });
+        }
+    }
+
+    private void request(byte[] request, Callback mCallback) {
+        if (mUsbDeviceConnection == null || mEpIn == null || mEpOut == null) {
+            mCallback.onFailure("device detached !!");
+            return;
+        }
+        int requestCode = mUsbDeviceConnection.bulkTransfer(mEpOut, request, request.length, timeOut);
+        if (requestCode >= 0) {
+            byte[] response = new byte[64];
+            int responseCode = mUsbDeviceConnection.bulkTransfer(mEpIn, response, response.length, timeOut);
+            if (responseCode >= 0) {
+                mCallback.onResponse(response);
+            } else {
+                mCallback.onFailure("response fail !!");
+            }
+        } else {
+            mCallback.onFailure("request fail !!");
+        }
+    }
+
+    private void parseVersion(byte[] data) {
+        try {
+            if (data == null || data.length < 1)
+                throw new IllegalArgumentException("this data must not be null or empty");
+            char[] chars = new char[63];
+            for (int i = 1; i < data.length; i++) {
+                if (data[i] == 0) {
+                    chars = Arrays.copyOf(chars, i - 1);
+                    break;
+                }
+                chars[i - 1] = (char) data[i];
+                //Log.d(TAG, "chars[" + (i - 1) + "]=" + chars[i - 1]);
+            }
+            String rowData = String.valueOf(chars);
+            if (!TextUtils.isEmpty(rowData)) {
+                String[] versions = rowData.split("V");
+                if (versions.length > 1) {
+                    ArgMcuVersion = "V" + versions[0];
+                    ArgLtVersion = "V" + versions[1];
+                    Log.d(TAG, "ArgMcuVersion = " + ArgMcuVersion + " , ArgLtVersion = " + ArgLtVersion);
+                }
+            }
+        } catch (Exception e) {
+            Log.d(TAG, "argVersion Exception : " + e.toString());
+        }
+    }
+
+    private void parseSensor(byte[] data) {
+        if (1 == data[0]) {
+            if (data[1] != 0) {
+                Log.d(TAG, "cmd value=" + data[1] + "  ,3d value=" + data[26] + "  ,light=" + data[27] + "   ,lh=" + data[28] + "   ,lv=" + data[29] + "   ,rh=" + data[30] + "   ,rv=" + data[31]);
+            }
+            ArgBN = data[27];
+            ArgCalibration[0] = data[28];
+            ArgCalibration[1] = data[29];
+            ArgCalibration[2] = data[30];
+            ArgCalibration[3] = data[31];
+            if (Arg23D != data[26]) {
+                Arg23D = data[26];
+                Log.d(TAG, "usb mode has change to " + (0 == Arg23D));
+//                Intent intent = new Intent();
+//                intent.setAction("android.intent.action.3D_MODE_CHANGED");
+//                intent.putExtra("3D_MODE", 0 == Arg23D);
+//                mContext.sendBroadcast(intent);
+            }
+//                            saveGyroStr(out);
+//                            saveAcceStr(out);
+//                            saveMangStr(out);
         }
     }
 
