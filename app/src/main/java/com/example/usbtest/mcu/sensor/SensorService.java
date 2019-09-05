@@ -38,18 +38,6 @@ public class SensorService extends Service {
     private SensorTask mSensorTask;
     private SensorService.ArgBinder argBinder = new SensorService.ArgBinder();
 
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return argBinder;
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        mHandler = new Handler();
-    }
-
     public void startSensor() {
         if (mHandler != null) {
             UsbManager mUsbManager = (UsbManager) getApplicationContext().getSystemService(Context.USB_SERVICE);
@@ -74,7 +62,8 @@ public class SensorService extends Service {
                                     }
                                     mEpIn = inf.getEndpoint(0);
                                     mEpOut = inf.getEndpoint(1);
-                                    startSensor();
+                                    mVersionTask = new VersionTask();
+                                    mHandler.post(mVersionTask);
                                 } else {
                                     mUsbDeviceConnection.close();
                                 }
@@ -83,6 +72,24 @@ public class SensorService extends Service {
                     }
                 }
             }
+        }
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return argBinder;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mHandler = new Handler();
+    }
+
+    public class ArgBinder extends Binder {
+        public SensorService getService() {
+            return SensorService.this;
         }
     }
 
@@ -247,12 +254,6 @@ public class SensorService extends Service {
             } else {
                 return normalCmd;
             }
-        }
-    }
-
-    public class ArgBinder extends Binder {
-        public SensorService getService() {
-            return SensorService.this;
         }
     }
 

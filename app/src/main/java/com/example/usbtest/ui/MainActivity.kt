@@ -57,12 +57,12 @@ class MainActivity : AppCompatActivity() {
     private var mServiceConnection: ServiceConnection? = null
     private val usbStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val deviceName =
-                (intent.getParcelableExtra<Parcelable>("device") as UsbDevice).deviceName
+            val productId =
+                (intent.getParcelableExtra<Parcelable>("device") as UsbDevice).productId
             if ("android.hardware.usb.action.USB_DEVICE_ATTACHED" == intent.action) {
-                toast("$deviceName is Attached")
+                toast("$productId is Attached")
             } else if ("android.hardware.usb.action.USB_DEVICE_DETACHED" == intent.action) {
-                toast("$deviceName is Detached")
+                toast("$productId is Detached")
                 mServiceConnection?.let {
                     unbindService(it)
                     argService = null
