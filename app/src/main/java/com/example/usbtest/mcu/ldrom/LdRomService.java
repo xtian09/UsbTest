@@ -1,4 +1,4 @@
-package com.example.usbtest.mcu.file;
+package com.example.usbtest.mcu.ldrom;
 
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
@@ -11,20 +11,17 @@ import com.example.usbtest.mcu.Callback;
 
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import static com.example.usbtest.mcu.file.FileCmd.CMD_GET_FLASHMODE;
-import static com.example.usbtest.mcu.file.FileCmd.CMD_RUN_APROM;
-import static com.example.usbtest.mcu.file.FileCmd.CMD_SYNC_PACKNO;
-import static com.example.usbtest.mcu.file.FileCmd.CMD_UPDATE_APROM;
-import static com.example.usbtest.mcu.file.FileCmd.IntToByte;
-import static com.example.usbtest.mcu.file.FileCmd.concatByte;
-import static com.example.usbtest.mcu.file.FileCmd.getReturnCode;
-
-public class FileTransfer {
+public class LdRomService {
 
     private static final String TAG = "MCU_FileTransfer";
+    private static final int CMD_UPDATE_APROM = 0x000000A0;
+    private static final int CMD_SYNC_PACKNO = 0x000000A4;
+    private static final int CMD_RUN_APROM = 0x000000AB;
+    private static final int CMD_GET_FLASHMODE = 0x000000CA;
     private UsbEndpoint mEpIn;
     private UsbEndpoint mEpOut;
     private UsbDeviceConnection mUsbDeviceConnection;
@@ -32,7 +29,7 @@ public class FileTransfer {
     private UsbManager mUsbManager;
     private FileSplicer mFileSplicer;
 
-    public FileTransfer(UsbManager mUsbManager, String path) throws FileNotFoundException {
+    public LdRomService(UsbManager mUsbManager, String path) throws FileNotFoundException {
         this.mUsbManager = mUsbManager;
         this.mFileSplicer = new FileSplicer(path);
     }
@@ -301,6 +298,55 @@ public class FileTransfer {
                 startStage();
             }
         }
+    }
+
+    private List<Integer> getReturnCode(byte[] data, int count) {
+        List<Integer> result = new ArrayList<>();
+        int size = data.length;
+        if (size > 0 && count > 0) {
+            int segments = size / count;
+            segments = size % count == 0 ? segments : segments + 1;
+            int reCode;
+            for (int i = 0; i < segments; i++) {
+                if (i == segments - 1) {
+                    reCode = ByteToInt(Arrays.copyOfRange(data, count * i, size));
+                } else {
+                    reCode = ByteToInt(Arrays.copyOfRange(data, count * i, count * (i + 1)));
+                }
+                result.add(reCode);
+            }
+        }
+        return result;
+    }
+
+    private int ByteToInt(byte[] bytes) {
+        return (bytes[3] & 0xff) << 24
+                | (bytes[2] & 0xff) << 16
+                | (bytes[1] & 0xff) << 8
+                | (bytes[0] & 0xff);
+    }
+
+    private byte[] IntToByte(int num) {
+        byte[] bytes = new byte[4];
+        bytes[3] = (byte) ((num >> 24) & 0xff);
+        bytes[2] = (byte) ((num >> 16) & 0xff);
+        bytes[1] = (byte) ((num >> 8) & 0xff);
+        bytes[0] = (byte) (num & 0xff);
+        return bytes;
+    }
+
+    private byte[] concatByte(byte[] first, byte[]... rest) {
+        int totalLength = first.length;
+        for (byte[] array : rest) {
+            totalLength += array.length;
+        }
+        byte[] result = Arrays.copyOf(first, totalLength);
+        int offset = first.length;
+        for (byte[] array : rest) {
+            System.arraycopy(array, 0, result, offset, array.length);
+            offset += array.length;
+        }
+        return result;
     }
 
 }

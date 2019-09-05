@@ -16,8 +16,8 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.example.usbtest.R
-import com.example.usbtest.mcu.file.FileTransfer
-import com.example.usbtest.mcu.sensor.SensorService
+import com.example.usbtest.mcu.aprom.ApRomService
+import com.example.usbtest.mcu.ldrom.LdRomService
 import kotlinx.android.synthetic.main.activity_main.*
 
 
@@ -51,9 +51,9 @@ class MainActivity : AppCompatActivity() {
     private var outEndPoint: UsbEndpoint? = null
     private var mUsbInterface: UsbInterface? = null
     private var mUsbDeviceConnection: UsbDeviceConnection? = null
-    private var mFileTransfer: FileTransfer? = null
+    private var mLdRomService: LdRomService? = null
     private var btnAdapter: ButtonAdapter? = null
-    private var argService: SensorService? = null
+    private var argService: ApRomService? = null
     private var mServiceConnection: ServiceConnection? = null
     private val usbStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
                     unbindService(it)
                     argService = null
                 }
-                mFileTransfer?.dispose()
+                mLdRomService?.dispose()
                 btnAdapter?.setNewData(defaultBtnList)
             }
         }
@@ -203,7 +203,7 @@ class MainActivity : AppCompatActivity() {
                                 componentName: ComponentName,
                                 iBinder: IBinder
                             ) {
-                                argService = (iBinder as SensorService.ArgBinder).service
+                                argService = (iBinder as ApRomService.ArgBinder).service
                             }
 
                             override fun onServiceDisconnected(componentName: ComponentName) {
@@ -211,7 +211,7 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
                         bindService(
-                            Intent(this, SensorService::class.java), mServiceConnection!!,
+                            Intent(this, ApRomService::class.java), mServiceConnection!!,
                             Context.BIND_AUTO_CREATE
                         )
                         btnAdapter?.addData(otherBtnList)
@@ -230,12 +230,12 @@ class MainActivity : AppCompatActivity() {
         argService?.changeRom()
         val file = Environment.getExternalStoragePublicDirectory(path)
         if (file.exists()) {
-            mFileTransfer = FileTransfer(
+            mLdRomService = LdRomService(
                 mUsbManager,
                 file.toString()
             )
             Runnable {
-                mFileTransfer!!.start()
+                mLdRomService!!.start()
             }.run()
         }
     }

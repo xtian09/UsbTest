@@ -1,4 +1,4 @@
-package com.example.usbtest.mcu.sensor;
+package com.example.usbtest.mcu.aprom;
 
 import android.app.Service;
 import android.content.Context;
@@ -22,7 +22,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class SensorService extends Service {
+public class ApRomService extends Service {
     private static final String TAG = "MCU_SensorService";
     private static final int timeOut = 100;
     private static int Arg23D = 0;
@@ -36,7 +36,7 @@ public class SensorService extends Service {
     private Handler mHandler;
     private VersionTask mVersionTask;
     private SensorTask mSensorTask;
-    private SensorService.ArgBinder argBinder = new SensorService.ArgBinder();
+    private ApRomService.ArgBinder argBinder = new ApRomService.ArgBinder();
 
     public void startSensor() {
         if (mHandler != null) {
@@ -88,8 +88,8 @@ public class SensorService extends Service {
     }
 
     public class ArgBinder extends Binder {
-        public SensorService getService() {
-            return SensorService.this;
+        public ApRomService getService() {
+            return ApRomService.this;
         }
     }
 

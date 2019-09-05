@@ -26,7 +26,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".mcu.sensor.SensorService" />
+        <service android:name=".mcu.aprom.ApRomService" />
     </application>
 
 </manifest>
