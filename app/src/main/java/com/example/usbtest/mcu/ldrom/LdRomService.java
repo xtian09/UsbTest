@@ -1,5 +1,6 @@
 package com.example.usbtest.mcu.ldrom;
 
+import android.content.Context;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
@@ -26,12 +27,11 @@ public class LdRomService {
     private UsbEndpoint mEpIn;
     private UsbEndpoint mEpOut;
     private UsbDeviceConnection mUsbDeviceConnection;
-    private static final int timeOut = 100;
     private UsbManager mUsbManager;
     private FileSplicer mFileSplicer;
 
-    public LdRomService(UsbManager mUsbManager, String path) throws FileNotFoundException {
-        this.mUsbManager = mUsbManager;
+    public LdRomService(Context context, String path) throws FileNotFoundException {
+        this.mUsbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         this.mFileSplicer = new FileSplicer(path);
     }
 
@@ -57,7 +57,7 @@ public class LdRomService {
                                 }
                                 mEpIn = inf.getEndpoint(0);
                                 mEpOut = inf.getEndpoint(1);
-                                preStage();
+                                startStage();
                             } else {
                                 mUsbDeviceConnection.close();
                             }
@@ -89,7 +89,7 @@ public class LdRomService {
     private void startStage() {
         List<McuStage> stageList = new ArrayList<>();
         stageList.add(new SyncStage());
-//        stageList.addAll(getFileSlice());
+        stageList.addAll(getFileSlice());
         stageList.add(new RunApStage());
         RealStage realStage = new RealStage(stageList, 0, 0);
         realStage.deliver(0);
@@ -123,10 +123,10 @@ public class LdRomService {
             mCallback.onFailure("device detached !!");
             return;
         }
-        int requestCode = mUsbDeviceConnection.bulkTransfer(mEpOut, request, request.length, timeOut);
+        int requestCode = mUsbDeviceConnection.bulkTransfer(mEpOut, request, request.length, 1000);
         if (requestCode >= 0) {
             byte[] response = new byte[64];
-            int responseCode = mUsbDeviceConnection.bulkTransfer(mEpIn, response, response.length, timeOut);
+            int responseCode = mUsbDeviceConnection.bulkTransfer(mEpIn, response, response.length, 5000);
             if (responseCode >= 0) {
                 mCallback.onResponse(response);
             } else {
@@ -170,6 +170,7 @@ public class LdRomService {
             RealStage next = new RealStage(mStages, mIndex + 1, pkgNum);
             McuStage mcuStage = mStages.get(mIndex);
             mcuStage.process(next);
+            Log.d(TAG, mStages.size() + " has done num = " + mIndex);
         }
 
         @Override
@@ -195,12 +196,11 @@ public class LdRomService {
             request(initRequest(chain.getPkgNum()), new Callback() {
                 @Override
                 public void onFailure(String error) {
-                    Log.d(TAG, cmd() + " cmd error = " + error);
+                    Log.d(TAG, cmd() + " cmd error = " + error + " pkgNum =" + chain.getPkgNum());
                 }
 
                 @Override
                 public void onResponse(byte[] response) {
-                    Log.d(TAG, cmd() + " cmd success !!");
                     List<Integer> codeList = getReturnCode(response, 4);
                     if (codeList.size() > 1) {
                         if (codeList.size() > 2) {

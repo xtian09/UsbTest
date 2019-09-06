@@ -50,7 +50,7 @@ public class ApRomService extends Service {
                 } else {
                     for (UsbDevice usbDevice : deviceList.values()) {
                         Log.d(TAG, "usb device vendorId = " + usbDevice.getVendorId() + " , ProductId = " + usbDevice.getProductId());
-                        if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 16128) {
+                        if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 20512) {
                             Log.d(TAG, "argDevice attached !!");
                             mUsbDeviceConnection = mUsbManager.openDevice(usbDevice);
                             if (mUsbDeviceConnection != null) {
@@ -75,25 +75,7 @@ public class ApRomService extends Service {
         }
     }
 
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return argBinder;
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        mHandler = new Handler();
-    }
-
-    public class ArgBinder extends Binder {
-        public ApRomService getService() {
-            return ApRomService.this;
-        }
-    }
-
-    public void changeRom(final Callback callback) {
+    public void changeToLdRom(final Callback callback) {
         if (mHandler != null) {
             if (mVersionTask != null) {
                 mHandler.removeCallbacks(mVersionTask);
@@ -109,6 +91,24 @@ public class ApRomService extends Service {
                     request(Cmd.ldRomCmd, callback);
                 }
             });
+        }
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return argBinder;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mHandler = new Handler();
+    }
+
+    public class ArgBinder extends Binder {
+        public ApRomService getService() {
+            return ApRomService.this;
         }
     }
 
