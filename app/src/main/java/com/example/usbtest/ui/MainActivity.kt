@@ -16,6 +16,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.example.usbtest.R
+import com.example.usbtest.mcu.Callback
 import com.example.usbtest.mcu.aprom.ApRomService
 import com.example.usbtest.mcu.ldrom.LdRomService
 import kotlinx.android.synthetic.main.activity_main.*
@@ -42,7 +43,7 @@ class MainActivity : AppCompatActivity() {
             "mcuTransfer",
             "restartSensor"
         )
-        private const val path = "/Download/ARGlass_V20.00.08.bin"
+        private const val path = "/Download/ARGlass.bin"
     }
 
     private var mSensorManager: SensorManager? = null
@@ -227,16 +228,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fileTransfer() {
-        argService?.changeRom()
-        val file = Environment.getExternalStoragePublicDirectory(path)
-        if (file.exists()) {
-            mLdRomService = LdRomService(
-                mUsbManager,
-                file.toString()
-            )
-            Runnable {
-                mLdRomService!!.start()
-            }.run()
-        }
+        argService?.changeRom(object : Callback {
+            override fun onFailure(error: String?) {
+                Log.d("MCU_MAIN", "changeRom error $error")
+            }
+
+            override fun onResponse(response: ByteArray?) {
+                val file = Environment.getExternalStoragePublicDirectory(path)
+                if (file.exists()) {
+                    mLdRomService = LdRomService(
+                        mUsbManager,
+                        file.toString()
+                    )
+                    Runnable {
+                        mLdRomService!!.start()
+                    }.run()
+                }
+            }
+
+        })
     }
 }

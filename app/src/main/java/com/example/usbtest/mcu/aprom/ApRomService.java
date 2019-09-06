@@ -50,7 +50,7 @@ public class ApRomService extends Service {
                 } else {
                     for (UsbDevice usbDevice : deviceList.values()) {
                         Log.d(TAG, "usb device vendorId = " + usbDevice.getVendorId() + " , ProductId = " + usbDevice.getProductId());
-                        if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 20512) {
+                        if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 16128) {
                             Log.d(TAG, "argDevice attached !!");
                             mUsbDeviceConnection = mUsbManager.openDevice(usbDevice);
                             if (mUsbDeviceConnection != null) {
@@ -93,7 +93,7 @@ public class ApRomService extends Service {
         }
     }
 
-    public void changeRom() {
+    public void changeRom(final Callback callback) {
         if (mHandler != null) {
             if (mVersionTask != null) {
                 mHandler.removeCallbacks(mVersionTask);
@@ -106,17 +106,7 @@ public class ApRomService extends Service {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    request(Cmd.lpromCmd, new Callback() {
-                        @Override
-                        public void onFailure(String error) {
-                            Log.d(TAG, "lpromCmd error = " + error);
-                        }
-
-                        @Override
-                        public void onResponse(byte[] response) {
-
-                        }
-                    });
+                    request(Cmd.ldRomCmd, callback);
                 }
             });
         }
@@ -203,7 +193,7 @@ public class ApRomService extends Service {
 
         private static final byte[] versionCmd = {2};
         private static final byte[] normalCmd = {1, 0};
-        private static final byte[] lpromCmd = {4, 1};
+        private static final byte[] ldRomCmd = {4, 1};
         private static LinkedBlockingQueue<byte[]> argCmdQueue = new LinkedBlockingQueue<>();
 
         private static void set3DMode(boolean b3D) {

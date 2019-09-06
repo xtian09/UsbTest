@@ -18,10 +18,11 @@ import java.util.List;
 public class LdRomService {
 
     private static final String TAG = "MCU_FileTransfer";
-    private static final int CMD_UPDATE_APROM = 0x000000A0;
-    private static final int CMD_SYNC_PACKNO = 0x000000A4;
-    private static final int CMD_RUN_APROM = 0x000000AB;
-    private static final int CMD_GET_FLASHMODE = 0x000000CA;
+    private static final int CMD_UPDATE_APROM = 0x000000A0;//160
+    private static final int CMD_UPDATE_APROM_REMAIN = 0x00000000;//0
+    private static final int CMD_SYNC_PACKNO = 0x000000A4;//164
+    private static final int CMD_RUN_APROM = 0x000000AB;//171
+    private static final int CMD_GET_FLASHMODE = 0x000000CA;//202
     private UsbEndpoint mEpIn;
     private UsbEndpoint mEpOut;
     private UsbDeviceConnection mUsbDeviceConnection;
@@ -44,7 +45,7 @@ public class LdRomService {
             } else {
                 for (UsbDevice usbDevice : deviceList.values()) {
                     Log.d(TAG, "usb device vendorId = " + usbDevice.getVendorId() + " , ProductId = " + usbDevice.getProductId());
-                    if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 20512) {
+                    if (usbDevice.getVendorId() == 1046 && usbDevice.getProductId() == 16128) {
                         Log.d(TAG, "argDevice attached !!");
                         mUsbDeviceConnection = mUsbManager.openDevice(usbDevice);
                         if (mUsbDeviceConnection != null) {
@@ -88,8 +89,7 @@ public class LdRomService {
     private void startStage() {
         List<McuStage> stageList = new ArrayList<>();
         stageList.add(new SyncStage());
-        stageList.add(new ModeStage());
-        stageList.addAll(getFileSlice());
+//        stageList.addAll(getFileSlice());
         stageList.add(new RunApStage());
         RealStage realStage = new RealStage(stageList, 0, 0);
         realStage.deliver(0);
@@ -103,17 +103,17 @@ public class LdRomService {
         int stepLength = 56;
         if (length > firstLength) {
             int hasRead = firstLength;
-            fileList.add(new FileStage(startPos, hasRead));
+            fileList.add(new FirstFileStage(startPos, hasRead));
             while (hasRead < length) {
                 if (hasRead + stepLength < length) {
-                    fileList.add(new FileStage(hasRead, stepLength));
+                    fileList.add(new OtherFileStage(hasRead, stepLength));
                 } else {
-                    fileList.add(new FileStage(hasRead, length - hasRead));
+                    fileList.add(new OtherFileStage(hasRead, length - hasRead));
                 }
                 hasRead += stepLength;
             }
         } else {
-            fileList.add(new FileStage(startPos, length));
+            fileList.add(new FirstFileStage(startPos, length));
         }
         return fileList;
     }
@@ -195,11 +195,12 @@ public class LdRomService {
             request(initRequest(chain.getPkgNum()), new Callback() {
                 @Override
                 public void onFailure(String error) {
-                    Log.d(TAG, this.getClass().getSimpleName() + " error = " + error);
+                    Log.d(TAG, cmd() + " cmd error = " + error);
                 }
 
                 @Override
                 public void onResponse(byte[] response) {
+                    Log.d(TAG, cmd() + " cmd success !!");
                     List<Integer> codeList = getReturnCode(response, 4);
                     if (codeList.size() > 1) {
                         if (codeList.size() > 2) {
@@ -212,12 +213,12 @@ public class LdRomService {
         }
     }
 
-    private class FileStage extends BaseStage {
+    private class FirstFileStage extends BaseStage {
 
         private int startPos;
         private int length;
 
-        FileStage(int startPos, int length) {
+        FirstFileStage(int startPos, int length) {
             this.startPos = startPos;
             this.length = length;
         }
@@ -229,11 +230,34 @@ public class LdRomService {
 
         @Override
         byte[] data() {
-            if (startPos == 0) {
-                return concatByte(IntToByte(startPos), IntToByte(mFileSplicer.getFileLength()), mFileSplicer.getData(startPos, length));
-            } else {
-                return mFileSplicer.getData(startPos, length);
-            }
+            return concatByte(IntToByte(startPos), IntToByte(mFileSplicer.getFileLength()), mFileSplicer.getData(startPos, length));
+
+        }
+
+        @Override
+        void handleResponse(List<Integer> response) {
+
+        }
+    }
+
+    private class OtherFileStage extends BaseStage {
+
+        private int startPos;
+        private int length;
+
+        OtherFileStage(int startPos, int length) {
+            this.startPos = startPos;
+            this.length = length;
+        }
+
+        @Override
+        int cmd() {
+            return CMD_UPDATE_APROM_REMAIN;
+        }
+
+        @Override
+        byte[] data() {
+            return mFileSplicer.getData(startPos, length);
         }
 
         @Override
