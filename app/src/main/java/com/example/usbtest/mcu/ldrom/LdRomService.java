@@ -23,9 +23,8 @@ public class LdRomService {
     private static final int CMD_UPDATE_APROM_REMAIN = 0x00000000;//0
     private static final int CMD_SYNC_PACKNO = 0x000000A4;//164
     private static final int CMD_RUN_APROM = 0x000000AB;//171
-    private static final int CMD_GET_FLASHMODE = 0x000000CA;//202
-    private UsbEndpoint mEpIn;
     private UsbEndpoint mEpOut;
+    private UsbEndpoint mEpIn;
     private UsbDeviceConnection mUsbDeviceConnection;
     private UsbManager mUsbManager;
     private FileSplicer mFileSplicer;
@@ -55,8 +54,8 @@ public class LdRomService {
                                     Log.d(TAG, "argDevice endPoint count error !!");
                                     return;
                                 }
-                                mEpIn = inf.getEndpoint(0);
-                                mEpOut = inf.getEndpoint(1);
+                                mEpOut = inf.getEndpoint(0);
+                                mEpIn = inf.getEndpoint(1);
                                 startStage();
                             } else {
                                 mUsbDeviceConnection.close();
@@ -71,19 +70,12 @@ public class LdRomService {
     public void dispose() {
         this.mUsbManager = null;
         this.mUsbDeviceConnection = null;
-        this.mEpIn = null;
         this.mEpOut = null;
+        this.mEpIn = null;
         if (this.mFileSplicer != null) {
             this.mFileSplicer.close();
             this.mFileSplicer = null;
         }
-    }
-
-    private void preStage() {
-        List<McuStage> stageList = new ArrayList<>();
-        stageList.add(new ModeStage());
-        RealStage realStage = new RealStage(stageList, 0, 0);
-        realStage.deliver(0);
     }
 
     private void startStage() {
@@ -119,14 +111,14 @@ public class LdRomService {
     }
 
     private void request(byte[] request, Callback mCallback) {
-        if (mUsbDeviceConnection == null || mEpIn == null || mEpOut == null) {
+        if (mUsbDeviceConnection == null || mEpOut == null || mEpIn == null) {
             mCallback.onFailure("device detached !!");
             return;
         }
-        int requestCode = mUsbDeviceConnection.bulkTransfer(mEpOut, request, request.length, 1000);
+        int requestCode = mUsbDeviceConnection.bulkTransfer(mEpIn, request, request.length, 1000);
         if (requestCode >= 0) {
             byte[] response = new byte[64];
-            int responseCode = mUsbDeviceConnection.bulkTransfer(mEpIn, response, response.length, 5000);
+            int responseCode = mUsbDeviceConnection.bulkTransfer(mEpOut, response, response.length, 5000);
             if (responseCode >= 0) {
                 mCallback.onResponse(response);
             } else {
@@ -299,28 +291,6 @@ public class LdRomService {
         @Override
         void handleResponse(List<Integer> response) {
 
-        }
-    }
-
-    private class ModeStage extends BaseStage {
-
-        @Override
-        int cmd() {
-            return CMD_GET_FLASHMODE;
-        }
-
-        @Override
-        byte[] data() {
-            return new byte[0];
-        }
-
-        @Override
-        void handleResponse(List<Integer> response) {
-            Log.d(TAG, "mode = " + response.get(2));
-            if (response.get(2) == 2) {
-                Log.d(TAG, "start transfer !!");
-                startStage();
-            }
         }
     }
 

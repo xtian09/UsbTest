@@ -1,38 +1,33 @@
 package com.example.usbtest.mcu.aprom;
 
-
 import java.util.ConcurrentModificationException;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class SensorCache<K, V> {
+public class SensorCache {
 
-    private LinkedHashMap<K, V> gyroMap = null;
+    private final LinkedHashMap<Long, float[]> gyroMap;
 
-    private LinkedHashMap<K, V> acceMap = null;
+    private final LinkedHashMap<Long, float[]> acceMap;
 
-    private LinkedHashMap<K, V> mangMap = null;
-
-    private int max;
+    private final LinkedHashMap<Long, float[]> mangMap;
 
     public SensorCache(final int max, boolean lru) {
-        this.max = max;
-        gyroMap = new LinkedHashMap<K, V>(max, 0.75f, lru) {
+        gyroMap = new LinkedHashMap<Long, float[]>(max, 0.75f, lru) {
             @Override
-            protected boolean removeEldestEntry(Entry<K, V> eldest) {
+            protected boolean removeEldestEntry(Map.Entry<Long, float[]> eldest) {
                 return size() > max;
             }
         };
-        acceMap = new LinkedHashMap<K, V>(max, 0.75f, lru) {
+        acceMap = new LinkedHashMap<Long, float[]>(max, 0.75f, lru) {
             @Override
-            protected boolean removeEldestEntry(Entry<K, V> eldest) {
+            protected boolean removeEldestEntry(Map.Entry<Long, float[]> eldest) {
                 return size() > max;
             }
         };
-        mangMap = new LinkedHashMap<K, V>(max, 0.75f, lru) {
+        mangMap = new LinkedHashMap<Long, float[]>(max, 0.75f, lru) {
             @Override
-            protected boolean removeEldestEntry(Entry<K, V> eldest) {
+            protected boolean removeEldestEntry(Map.Entry<Long, float[]> eldest) {
                 return size() > max;
             }
         };
@@ -42,7 +37,7 @@ public class SensorCache<K, V> {
         return LazyHolder.INSTANCE;
     }
 
-    public void put(int sensorType, K key, V value) {
+    public void put(int sensorType, Long key, float[] value) {
         switch (sensorType) {
             case 1:
                 synchronized (acceMap) {
@@ -62,6 +57,19 @@ public class SensorCache<K, V> {
         }
     }
 
+    public float[] getTail(int sensorType) throws ConcurrentModificationException {
+        switch (sensorType) {
+            case 1:
+                return getEntryValue(acceMap);
+            case 2:
+                return getEntryValue(mangMap);
+            case 4:
+                return getEntryValue(gyroMap);
+            default:
+                return null;
+        }
+    }
+
     public void clearAllData() {
         synchronized (this) {
             acceMap.clear();
@@ -70,37 +78,13 @@ public class SensorCache<K, V> {
         }
     }
 
-    public <K, V> Map.Entry<K, V> getTail(int sensorType) throws ConcurrentModificationException {
-        switch (sensorType) {
-            case 1:
-                synchronized (acceMap) {
-                    Map.Entry<K, V> tail = null;
-                    Iterator<Map.Entry<K, V>> iterator1 = ((LinkedHashMap<K, V>) acceMap).entrySet().iterator();
-                    while (iterator1.hasNext()) {
-                        tail = iterator1.next();
-                    }
-                    return tail;
-                }
-            case 2:
-                synchronized (mangMap) {
-                    Map.Entry<K, V> tail = null;
-                    Iterator<Map.Entry<K, V>> iterator2 = ((LinkedHashMap<K, V>) mangMap).entrySet().iterator();
-                    while (iterator2.hasNext()) {
-                        tail = iterator2.next();
-                    }
-                    return tail;
-                }
-            case 4:
-                synchronized (gyroMap) {
-                    Map.Entry<K, V> tail = null;
-                    Iterator<Map.Entry<K, V>> iterator4 = ((LinkedHashMap<K, V>) gyroMap).entrySet().iterator();
-                    while (iterator4.hasNext()) {
-                        tail = iterator4.next();
-                    }
-                    return tail;
-                }
-            default:
-                return null;
+    private float[] getEntryValue(LinkedHashMap<Long, float[]> map) {
+        synchronized (map) {
+            Map.Entry<Long, float[]> tail = null;
+            for (Map.Entry<Long, float[]> kvEntry : map.entrySet()) {
+                tail = kvEntry;
+            }
+            return tail.getValue();
         }
     }
 

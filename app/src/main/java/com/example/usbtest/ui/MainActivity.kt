@@ -19,6 +19,7 @@ import androidx.core.app.ActivityCompat
 import com.example.usbtest.R
 import com.example.usbtest.mcu.Callback
 import com.example.usbtest.mcu.aprom.ApRomService
+import com.example.usbtest.mcu.aprom.SensorCache
 import com.example.usbtest.mcu.ldrom.LdRomService
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -43,7 +44,8 @@ class MainActivity : AppCompatActivity() {
             "setCalibration",
             "getCalibration",
             "setBrightness",
-            "getBrightness"
+            "getBrightness",
+            "getTailValue"
         )
         private const val path = "/Download/ARGlass07.bin"
     }
@@ -202,6 +204,9 @@ class MainActivity : AppCompatActivity() {
                     9 -> toast("calibration = " + argService?.calibration)
                     10 -> argService?.brightness = 4
                     11 -> toast("brightness = " + argService?.brightness)
+                    12 -> {
+                        Log.d("MCU_value", SensorCache.getMcuCache().getTail(4)[2].toString());
+                    }
                     else -> toast("unknown!")
                 }
             }
