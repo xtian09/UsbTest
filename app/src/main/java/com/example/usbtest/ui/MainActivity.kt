@@ -9,17 +9,14 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
-import android.os.Bundle
-import android.os.Environment
-import android.os.IBinder
-import android.os.Parcelable
+import android.os.*
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.example.usbtest.R
 import com.example.usbtest.mcu.Callback
 import com.example.usbtest.mcu.aprom.ApRomService
-import com.example.usbtest.mcu.aprom.SensorCache
+import com.example.usbtest.mcu.aprom.SensorADCache
 import com.example.usbtest.mcu.ldrom.LdRomService
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -169,6 +166,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var a: Runnable? = null
+    private var b: Runnable? = null
+    private var c: Runnable? = null
+
     private fun init() {
         mUsbManager = getSystemService(Context.USB_SERVICE) as UsbManager
         mSensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -205,7 +206,43 @@ class MainActivity : AppCompatActivity() {
                     10 -> argService?.brightness = 4
                     11 -> toast("brightness = " + argService?.brightness)
                     12 -> {
-                        Log.d("MCU_value", SensorCache.getMcuCache().getTail(4)[2].toString());
+                        var handler = Handler()
+                        a = Runnable {
+                            var old = System.nanoTime()
+//                            var value = SensorLHCache.getInstance().getTail(4)
+                            var value = SensorADCache.getInstance().getTail(4)
+                            var new = System.nanoTime()
+                            Log.d(
+                                "MCU_value",
+                                value[2].toString() + "gyro need time = " + (new - old)
+                            )
+                            handler.postDelayed(a, 20)
+                        }
+                        handler.post(a)
+                        b = Runnable {
+                            var old = System.nanoTime()
+//                            var value = SensorLHCache.getInstance().getTail(2)
+                            var value = SensorADCache.getInstance().getTail(2)
+                            var new = System.nanoTime()
+                            Log.d(
+                                "MCU_value",
+                                value[2].toString() + "mang need time = " + (new - old)
+                            )
+                            handler.postDelayed(b, 10)
+                        }
+                        handler.post(b)
+                        c = Runnable {
+                            var old = System.nanoTime()
+//                            var value = SensorLHCache.getInstance().getTail(1)
+                            var value = SensorADCache.getInstance().getTail(1)
+                            var new = System.nanoTime()
+                            Log.d(
+                                "MCU_value",
+                                value[2].toString() + "acce need time = " + (new - old)
+                            )
+                            handler.postDelayed(c, 5)
+                        }
+                        handler.post(c)
                     }
                     else -> toast("unknown!")
                 }

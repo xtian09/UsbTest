@@ -343,15 +343,15 @@ public class ApRomService extends Service {
                 float[] gyros = new float[3];
                 for (int i = 2; i < 7; i += 2) {
                     gyros[i / 2 - 1] = mathRawValue(response[i], response[i + 1]);
-                    Log.d(TAG, "gyros[" + (i / 2 - 1) + "]=" + gyros[i / 2 - 1]);
+//                    Log.d(TAG, "gyros[" + (i / 2 - 1) + "]=" + gyros[i / 2 - 1]);
                 }
-                SensorCache.getMcuCache().put(4, System.currentTimeMillis(), gyros);
+                SensorADCache.getInstance().put(4, gyros);
                 float[] acces = new float[3];
                 for (int i = 8; i < 13; i += 2) {
                     acces[i / 2 - 4] = mathRawValue(response[i], response[i + 1]);
-                    Log.d(TAG, "acces[" + (i / 2 - 4) + "]=" + acces[i / 2 - 4]);
+//                    Log.d(TAG, "acces[" + (i / 2 - 4) + "]=" + acces[i / 2 - 4]);
                 }
-                SensorCache.getMcuCache().put(1, System.currentTimeMillis(), acces);
+                SensorADCache.getInstance().put(1, acces);
                 float[] mangs = new float[3];
                 for (int i = 14; i < 25; i += 4) {
                     int mang = 0;
@@ -360,9 +360,9 @@ public class ApRomService extends Service {
                     mang = mang | (response[i + 2] & 0xff) << 16;
                     mang = mang | (response[i + 3] & 0xff) << 24;
                     mangs[i / 4 - 3] = Float.intBitsToFloat(mang);
-                    Log.d(TAG, "mangs[" + (i / 4 - 3) + "]=" + mangs[i / 4 - 3]);
+//                    Log.d(TAG, "mangs[" + (i / 4 - 3) + "]=" + mangs[i / 4 - 3]);
                 }
-                SensorCache.getMcuCache().put(2, System.currentTimeMillis(), mangs);
+                SensorADCache.getInstance().put(2, mangs);
             } catch (Exception e) {
                 Log.d(TAG, "saveSensor exception = " + e.toString());
             }
